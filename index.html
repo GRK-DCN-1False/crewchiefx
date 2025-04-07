@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crewchiefx Assistant</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: white;
+            border-left: 1px solid #ddd;
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #e1f5fe;
+            align-self: flex-end;
+        }
+        .assistant-message {
+            background-color: #f1f1f1;
+            align-self: flex-start;
+        }
+        .message pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 8px;
+            overflow-x: auto;
+        }
+        code {
+            background-color: #f8f8f8;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .input-container {
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-top: 1px solid #ddd;
+            border-radius: 0 0 8px 8px;
+        }
+        .message-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-size: 16px;
+            resize: none;
+            min-height: 60px;
+            font-family: Arial, sans-serif;
+        }
+        .button-container {
+            display: flex;
+            justify-content: space-between;
+        }
+        .send-button {
+            padding: 10px 20px;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .file-input-container {
+            position: relative;
+            display: inline-block;
+        }
+        .file-input {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .file-button {
+            padding: 10px 20px;
+            background-color: #34495e;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .file-name {
+            margin-top: 8px;
+            font-size: 14px;
+            color: #555;
+        }
+
+        /* Make code blocks more readable on mobile */
+        @media (max-width: 768px) {
+            .message {
+                max-width: 90%;
+            }
+            .message pre {
+                font-size: 14px;
+            }
+            code {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Crewchiefx Assistant</h1>
+            <button id="clear-button" onclick="clearChat()" style="background: none; border: none; color: white; cursor: pointer;">
+                Clear
+            </button>
+        </div>
+        <div class="chat-container" id="chat-container">
+            <div class="message assistant-message">
+                Hello Crewgr! I'm Crewchiefx, your IT assistant. How can I help you today?
+            </div>
+        </div>
+        <div class="input-container">
+            <textarea class="message-input" id="user-input" placeholder="Type your message here..."></textarea>
+            <div class="file-name" id="file-name"></div>
+            <div class="button-container">
+                <div class="file-input-container">
+                    <button class="file-button">Attach File</button>
+                    <input type="file" class="file-input" id="file-input">
+                </div>
+                <button class="send-button" id="send-button">Send</button>
+            </div>
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <span>Processing...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const fileInput = document.getElementById('file-input');
+        const fileName = document.getElementById('file-name');
+        const loading = document.getElementById('loading');
+
+        // Variables to store the current file
+        let currentFile = null;
+        let fileContentB64 = null;
+
+        // Convert markdown to HTML
+        function mdToHtml(md) {
+            // Basic markdown conversion - this is simplified
+            // Replace code blocks
+            md = md.replace(/```(\w*)([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+            
+            // Replace inline code
+            md = md.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // Replace headers (h1, h2, h3)
+            md = md.replace(/^### (.*$)/gm, '<h3>$1</h3>');
+            md = md.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+            md = md.replace(/^# (.*$)/gm, '<h1>$1</h1>');
+            
+            // Replace bold text
+            md = md.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            
+            // Replace italic text
+            md = md.replace(/\*(.*?)\*/g, '<em>$1</em>');
+            
+            // Replace line breaks
+            md = md.replace(/\n/g, '<br>');
+            
+            return md;
+        }
+
+        // Function to add a message to the chat
+        function addMessage(message, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = isUser ? 'message user-message' : 'message assistant-message';
+            
+            if (!isUser) {
+                // Process markdown for assistant responses
+                messageDiv.innerHTML = mdToHtml(message);
+            } else {
+                messageDiv.textContent = message;
+            }
+            
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Function to send a message to the assistant
+        async function sendMessage() {
+            const message = userInput.value.trim();
+            if (message === '' && !fileContentB64) return;
+
+            // Add user message to chat
+            addMessage(message, true);
+            
+            // Clear input
+            userInput.value = '';
+            
+            // Show loading indicator
+            loading.style.display = 'block';
+            
+            try {
+                // Prepare request data
+                const requestData = {
+                    prompt: message
+                };
+                
+                // Add file if one is selected
+                if (fileContentB64) {
+                    requestData.file = fileContentB64;
+                }
+                
+                // Make API request to n8n webhook
+                const response = await fetch('https://crewgr.com/webhook/claude-assistant', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                // Process response
+                if (response.ok) {
+                    const data = await response.text();
+                    addMessage(data, false);
+                } else {
+                    addMessage("Sorry, I encountered an error. Please try again.", false);
+                    console.error('Error:', response.statusText);
+                }
+            } catch (error) {
+                addMessage("Sorry, I encountered an error. Please try again.", false);
+                console.error('Error:', error);
+            } finally {
+                // Hide loading indicator
+                loading.style.display = 'none';
+                
+                // Reset file
+                resetFile();
+            }
+        }
+
+        // Function to handle file selection
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            currentFile = file;
+            fileName.textContent = `File: ${file.name}`;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                fileContentB64 = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Function to reset file selection
+        function resetFile() {
+            currentFile = null;
+            fileContentB64 = null;
+            fileName.textContent = '';
+            fileInput.value = '';
+        }
+
+        // Function to clear the chat
+        function clearChat() {
+            while (chatContainer.children.length > 1) {
+                chatContainer.removeChild(chatContainer.lastChild);
+            }
+            resetFile();
+        }
+
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        userInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Store chat history in localStorage
+        window.addEventListener('beforeunload', function() {
+            localStorage.setItem('chatHistory', chatContainer.innerHTML);
+        });
+
+        // Load chat history from localStorage
+        window.addEventListener('load', function() {
+            const savedChat = localStorage.getItem('chatHistory');
+            if (savedChat) {
+                chatContainer.innerHTML = savedChat;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+        });
+    </script>
+</body>
+</html>
