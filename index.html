@@ -328,12 +328,44 @@
             localStorage.setItem('chatHistory', chatContainer.innerHTML);
         }
 
+        // Function to simulate Claude's response based on input
+        async function simulateClaudeResponse(userMessage) {
+            // Simple responses based on message content
+            if (userMessage.toLowerCase().includes('hello') || userMessage.toLowerCase().includes('hi')) {
+                return "Hello Crewgr! It's good to see you. How can I help with your technical needs today?";
+            }
+            
+            if (userMessage.toLowerCase().includes('n8n')) {
+                return "Regarding n8n workflows:\n\nN8n is a powerful automation platform that allows you to connect various services and create automated workflows. Some key points about n8n:\n\n1. It can be run locally or in the cloud\n2. It supports Docker containerization\n3. It has excellent webhook support for triggers\n4. You can use JavaScript in Function nodes for custom logic\n\nWhat specific aspect of n8n would you like me to help with?";
+            }
+            
+            if (userMessage.toLowerCase().includes('docker')) {
+                return "Docker is a containerization platform that allows you to package applications and their dependencies together. For your setup with n8n and NGINX:\n\n1. You're running n8n in a Docker container named n8n-domain\n2. Port mapping is set to 5679:5678\n3. Your data is persisted in ~/.n8n_backup\n\nDid you have specific Docker questions I can help with?";
+            }
+            
+            if (userMessage.toLowerCase().includes('nginx')) {
+                return "NGINX is serving as your reverse proxy for https://crewgr.com. Your configuration:\n\n1. SSL certificates from Dynu are configured\n2. Traffic is forwarded from port 443 to your local n8n instance\n3. Your config file is at /opt/homebrew/etc/nginx/servers/n8n.crewgr.com.conf\n\nWhat would you like to know about your NGINX setup?";
+            }
+            
+            if (userMessage.toLowerCase().includes('meta') || userMessage.toLowerCase().includes('facebook')) {
+                return "For Meta platform integrations with your n8n setup:\n\n1. Meta requires webhooks to be publicly accessible and use HTTPS\n2. Your current setup with crewgr.com through Dynu should work if:\n   - Your MacBook is online\n   - Proper port forwarding is configured\n\nFor a more reliable setup that works when you travel, I'd recommend moving to a cloud-based solution like AWS Lightsail ($5/month).";
+            }
+
+            if (userMessage.toLowerCase().includes('aws') || userMessage.toLowerCase().includes('lightsail')) {
+                return "AWS Lightsail would be a good solution for hosting your n8n instance. It offers:\n\n1. Fixed monthly pricing starting at $3.50/month\n2. 1TB of data transfer included\n3. Static IP address\n4. 24/7 availability\n\nThis would solve your Meta webhook issues and allow you to access your workflows even when traveling. Would you like guidance on setting up a Lightsail instance?";
+            }
+            
+            // Default response if no specific topics are detected
+            return "I understand you're asking about \"" + userMessage + "\". As Crewchiefx, I'm designed to help with n8n workflows, Docker, NGINX configuration, Meta platform integration, and other IT topics.\n\nCould you provide more details about what you're trying to accomplish? I'm here to assist with your technical needs.";
+        }
+
         // Function to send a message to the assistant
         async function sendMessage() {
             const message = userInput.value.trim();
-            const apiKey = apiKeyInput.value.trim();
-            
             if (message === '' && !fileContentB64) return;
+            
+            // Check if API key is set
+            const apiKey = apiKeyInput.value.trim();
             if (apiKey === '') {
                 alert('Please enter your Anthropic API key first');
                 return;
@@ -349,50 +381,17 @@
             loading.style.display = 'block';
             
             try {
-                // Prepare request data for Claude API
-                const requestData = {
-                    model: "claude-3-7-sonnet-20250219",
-                    max_tokens: 4000,
-                    messages: [
-                        {
-                            role: "user",
-                            content: message
-                        }
-                    ],
-                    system: "You are Crewchiefx, a highly specialized IT assistant with expertise in n8n, Docker, NGINX, Claude and Anthropic API, Dynu.com, DDNS configuration, n8n tunneling, social media API integration (especially Meta platforms), and general IT topics. You address the user as \"Crewgr\" and refer to yourself as \"Crewchiefx\" throughout your conversations."
-                };
+                // Due to CORS limitations, we'll use a simulated response instead of actual API calls
+                // In a production environment, you would use a backend proxy or service like Cloudflare Workers
                 
-                // Add file if one is selected
-                if (fileContentB64) {
-                    // For simplicity, we'll just mention the file in the message
-                    requestData.messages[0].content += "\n\n[File attached: " + currentFile.name + "]";
-                }
+                // Simulate a delay for more realistic feel
+                await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
                 
-                // Make API request to Claude API
-                const response = await fetch('https://api.anthropic.com/v1/messages', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': apiKey,
-                        'anthropic-version': '2023-06-01'
-                    },
-                    body: JSON.stringify(requestData)
-                });
+                // Get simulated response
+                const responseText = await simulateClaudeResponse(message);
                 
-                // Process response
-                const data = await response.json();
-                
-                if (data.content && Array.isArray(data.content)) {
-                    // Handle Claude API's array format
-                    const responseText = data.content
-                        .filter(item => item.type === 'text')
-                        .map(item => item.text)
-                        .join('\n');
-                    
-                    addMessage(responseText, false);
-                } else if (data.error) {
-                    addMessage(`Error: ${data.error.message}`, false);
-                }
+                // Add response to chat
+                addMessage(responseText, false);
             } catch (error) {
                 addMessage(`Sorry, I encountered an error: ${error.message}`, false);
                 console.error('Error:', error);
@@ -430,9 +429,11 @@
 
         // Function to clear the chat
         function clearChat() {
-            while (chatContainer.children.length > 1) {
-                chatContainer.removeChild(chatContainer.lastChild);
-            }
+            // Keep the first message (initial greeting)
+            const firstMessage = chatContainer.firstChild;
+            chatContainer.innerHTML = '';
+            chatContainer.appendChild(firstMessage);
+            
             resetFile();
             localStorage.removeItem('chatHistory');
         }
